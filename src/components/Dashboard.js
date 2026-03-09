@@ -1,20 +1,31 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, createContext, useContext } from "react";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   ScatterChart, Scatter, ZAxis, Cell, PieChart, Pie,
-  CartesianGrid, LabelList,
+  CartesianGrid, LabelList, ReferenceArea,
 } from "recharts";
 
-// ── THEME ──
-const C = {
+// ── THEMES ──
+const DARK = {
   bg: "#0a0f1a", surface: "#111827", surfaceHover: "#1a2236",
   border: "#1e293b", text: "#e2e8f0", textMuted: "#94a3b8",
   accent: "#3b82f6", accentLight: "#60a5fa", danger: "#ef4444",
   warning: "#f59e0b", success: "#10b981", purple: "#8b5cf6",
   pink: "#ec4899", cyan: "#06b6d4", orange: "#f97316", lime: "#84cc16",
 };
+
+const LIGHT = {
+  bg: "#f8fafc", surface: "#ffffff", surfaceHover: "#f1f5f9",
+  border: "#d1d5db", text: "#1e293b", textMuted: "#64748b",
+  accent: "#3b82f6", accentLight: "#2563eb", danger: "#ef4444",
+  warning: "#f59e0b", success: "#10b981", purple: "#8b5cf6",
+  pink: "#ec4899", cyan: "#06b6d4", orange: "#f97316", lime: "#84cc16",
+};
+
+const ThemeContext = createContext(DARK);
+function useTheme() { return useContext(ThemeContext); }
 
 const CAT_COLORS = {
   "Large Incumbent": "#3b82f6",
@@ -47,7 +58,7 @@ const competitors = [
   { name: "Decagon", category: "AI-First", hq: "San Francisco, USA", revenue: 50, revenueLabel: "~$50M+ (est.)", aiPosture: "AI-First", pricingModel: "Per-conversation / resolution", resolutionPrice: null, seatPrice: null, fundingOrVal: "$100M / $1B+ val", founded: 2023, automationRate: "N/A", customers: null, aiScore: 10, marketBreadth: 4, automationDepth: 9 },
   { name: "Ada", category: "AI-First", hq: "Toronto, Canada", revenue: 70, revenueLabel: "$70.6M rev", aiPosture: "AI-First", pricingModel: "Per-resolution", resolutionPrice: 2.25, seatPrice: null, fundingOrVal: "$200M / $1.2B val", founded: 2016, automationRate: "70% (claimed)", customers: null, aiScore: 9, marketBreadth: 6, automationDepth: 9 },
   { name: "Forethought", category: "AI-First", hq: "San Francisco, USA", revenue: 30, revenueLabel: "~$30M (est.)", aiPosture: "AI-First", pricingModel: "Usage-based", resolutionPrice: null, seatPrice: null, fundingOrVal: "$115M+ raised", founded: 2018, automationRate: "N/A", customers: null, aiScore: 8, marketBreadth: 5, automationDepth: 8 },
-  { name: "Cognigy (NICE)", category: "AI-First", hq: "Düsseldorf, Germany", revenue: 40, revenueLabel: "~$40M (pre-acq est.)", aiPosture: "AI-First", pricingModel: "Enterprise subscription", resolutionPrice: null, seatPrice: null, fundingOrVal: "Acquired $955M", founded: 2016, automationRate: "N/A", customers: null, aiScore: 9, marketBreadth: 6, automationDepth: 8 },
+  { name: "Cognigy (NICE)", category: "AI-First", hq: "D\u00fcsseldorf, Germany", revenue: 40, revenueLabel: "~$40M (pre-acq est.)", aiPosture: "AI-First", pricingModel: "Enterprise subscription", resolutionPrice: null, seatPrice: null, fundingOrVal: "Acquired $955M", founded: 2016, automationRate: "N/A", customers: null, aiScore: 9, marketBreadth: 6, automationDepth: 8 },
   { name: "Maven AGI", category: "AI-First", hq: "San Francisco, USA", revenue: 7, revenueLabel: "~$7M rev", aiPosture: "AI-First", pricingModel: "Enterprise custom", resolutionPrice: null, seatPrice: null, fundingOrVal: "$78M raised", founded: 2023, automationRate: "93% claimed", customers: 40, aiScore: 9, marketBreadth: 3, automationDepth: 9 },
   { name: "Crescendo AI", category: "Managed Service", hq: "San Francisco, USA", revenue: 100, revenueLabel: "$100M+ ARR (projected)", aiPosture: "AI-First", pricingModel: "Managed service", resolutionPrice: null, seatPrice: null, fundingOrVal: "$50M / $500M val", founded: 2024, automationRate: "N/A", customers: null, aiScore: 8, marketBreadth: 4, automationDepth: 8 },
   { name: "Gorgias", category: "Specialist", hq: "San Francisco, USA", revenue: 71, revenueLabel: "$69-73M ARR", aiPosture: "Hybrid", pricingModel: "Ticket + Resolution", resolutionPrice: 0.90, seatPrice: null, fundingOrVal: "$96M raised", founded: 2015, automationRate: "N/A", customers: 15000, aiScore: 6, marketBreadth: 3, automationDepth: 7 },
@@ -84,31 +95,33 @@ const TABS = [
 
 // ── TOOLTIP ──
 function TT({ active, payload }) {
+  const t = useTheme();
   if (!active || !payload?.length) return null;
   const d = payload[0]?.payload;
   if (!d) return null;
   return (
-    <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, padding: "12px 16px", maxWidth: 280, zIndex: 50 }}>
-      <div style={{ fontWeight: 700, color: C.text, fontSize: 14 }}>{d.name}</div>
-      <div style={{ color: C.textMuted, fontSize: 12, marginTop: 2 }}>{d.category} · {d.hq}</div>
-      {d.revenueLabel && <div style={{ color: C.accent, fontSize: 12, marginTop: 6 }}>Revenue: {d.revenueLabel}</div>}
-      {d.aiPosture && <div style={{ color: AI_COLORS[d.aiPosture] || C.textMuted, fontSize: 12 }}>AI: {d.aiPosture}</div>}
-      {d.pricingModel && <div style={{ color: C.textMuted, fontSize: 12 }}>Pricing: {d.pricingModel}</div>}
+    <div style={{ background: t.surface, border: `1px solid ${t.border}`, borderRadius: 8, padding: "12px 16px", maxWidth: 280, zIndex: 50 }}>
+      <div style={{ fontWeight: 700, color: t.text, fontSize: 14 }}>{d.name}</div>
+      <div style={{ color: t.textMuted, fontSize: 12, marginTop: 2 }}>{d.category} · {d.hq}</div>
+      {d.revenueLabel && <div style={{ color: t.accent, fontSize: 12, marginTop: 6 }}>Revenue: {d.revenueLabel}</div>}
+      {d.aiPosture && <div style={{ color: AI_COLORS[d.aiPosture] || t.textMuted, fontSize: 12 }}>AI: {d.aiPosture}</div>}
+      {d.pricingModel && <div style={{ color: t.textMuted, fontSize: 12 }}>Pricing: {d.pricingModel}</div>}
     </div>
   );
 }
 
 // ── CATEGORY FILTER ──
 function CategoryFilter({ selected, onToggle }) {
+  const t = useTheme();
   const allSelected = selected.length === ALL_CATEGORIES.length;
   return (
     <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 20 }}>
       <button
         onClick={() => onToggle("ALL")}
         style={{
-          background: allSelected ? C.accent : "transparent",
-          color: allSelected ? "#fff" : C.textMuted,
-          border: `1px solid ${allSelected ? C.accent : C.border}`,
+          background: allSelected ? t.accent : "transparent",
+          color: allSelected ? "#fff" : t.textMuted,
+          border: `1px solid ${allSelected ? t.accent : t.border}`,
           borderRadius: 20, padding: "5px 14px",
           fontSize: 12, fontWeight: 600, cursor: "pointer",
           transition: "all 0.15s",
@@ -125,8 +138,8 @@ function CategoryFilter({ selected, onToggle }) {
             onClick={() => onToggle(cat)}
             style={{
               background: active ? CAT_COLORS[cat] + "22" : "transparent",
-              color: active ? CAT_COLORS[cat] : C.textMuted,
-              border: `1px solid ${active ? CAT_COLORS[cat] : C.border}`,
+              color: active ? CAT_COLORS[cat] : t.textMuted,
+              border: `1px solid ${active ? CAT_COLORS[cat] : t.border}`,
               borderRadius: 20, padding: "5px 14px",
               fontSize: 12, fontWeight: 600, cursor: "pointer",
               transition: "all 0.15s",
@@ -135,7 +148,7 @@ function CategoryFilter({ selected, onToggle }) {
           >
             <div style={{
               width: 8, height: 8, borderRadius: "50%",
-              background: active ? CAT_COLORS[cat] : C.border,
+              background: active ? CAT_COLORS[cat] : t.border,
               transition: "all 0.15s",
             }} />
             {cat} ({count})
@@ -170,20 +183,67 @@ function applyJitter(data) {
   return result;
 }
 
-// ── 1. POSITIONING MATRIX ──
+// ── 1. POSITIONING MATRIX (with zoom) ──
+const CHART_MARGIN = { top: 20, right: 40, bottom: 40, left: 50 };
+
 function PositioningMatrix({ data }) {
+  const t = useTheme();
+  const [zoom, setZoom] = useState({ x: [0, 11], y: [0, 11] });
+  const [dragStart, setDragStart] = useState(null);
+  const [dragEnd, setDragEnd] = useState(null);
+  const chartRef = useRef(null);
+
   const rawData = data.map(c => ({
     ...c, x: c.marketBreadth, y: c.automationDepth,
     z: Math.max(Math.log10(c.revenue || 10) * 120, 80),
   }));
   const chartData = applyJitter(rawData);
 
+  const isZoomed = zoom.x[0] !== 0 || zoom.x[1] !== 11 || zoom.y[0] !== 0 || zoom.y[1] !== 11;
+
+  const pixelToDomain = (clientX, clientY) => {
+    if (!chartRef.current) return null;
+    const rect = chartRef.current.getBoundingClientRect();
+    const plotW = rect.width - CHART_MARGIN.left - CHART_MARGIN.right;
+    const plotH = rect.height - CHART_MARGIN.top - CHART_MARGIN.bottom;
+    const normX = (clientX - rect.left - CHART_MARGIN.left) / plotW;
+    const normY = (clientY - rect.top - CHART_MARGIN.top) / plotH;
+    return {
+      x: Math.max(zoom.x[0], Math.min(zoom.x[1], normX * (zoom.x[1] - zoom.x[0]) + zoom.x[0])),
+      y: Math.max(zoom.y[0], Math.min(zoom.y[1], (1 - normY) * (zoom.y[1] - zoom.y[0]) + zoom.y[0])),
+    };
+  };
+
+  const handleMouseDown = (e) => {
+    if (e.button !== 0) return;
+    const pt = pixelToDomain(e.clientX, e.clientY);
+    if (pt) { setDragStart(pt); setDragEnd(null); }
+  };
+  const handleMouseMove = (e) => {
+    if (!dragStart) return;
+    const pt = pixelToDomain(e.clientX, e.clientY);
+    if (pt) setDragEnd(pt);
+  };
+  const handleMouseUp = () => {
+    if (dragStart && dragEnd) {
+      const x1 = Math.min(dragStart.x, dragEnd.x);
+      const x2 = Math.max(dragStart.x, dragEnd.x);
+      const y1 = Math.min(dragStart.y, dragEnd.y);
+      const y2 = Math.max(dragStart.y, dragEnd.y);
+      if (x2 - x1 > 0.3 && y2 - y1 > 0.3) {
+        setZoom({ x: [Math.max(0, x1), Math.min(11, x2)], y: [Math.max(0, y1), Math.min(11, y2)] });
+      }
+    }
+    setDragStart(null);
+    setDragEnd(null);
+  };
+
   const renderLabel = (props) => {
     const { x, y, value, index } = props;
     const item = chartData[index];
     if (!item) return null;
     return (
-      <text x={x} y={y - 6} textAnchor="middle" fill={C.textMuted} fontSize={9} fontWeight={500} style={{ pointerEvents: "none" }}>
+      <text x={x} y={y - 6} textAnchor="middle" fill={t.textMuted} fontSize={isZoomed ? 11 : 9} fontWeight={500} style={{ pointerEvents: "none" }}>
         {value}
       </text>
     );
@@ -191,31 +251,66 @@ function PositioningMatrix({ data }) {
 
   return (
     <div>
-      <h3 style={{ color: C.text, margin: "0 0 4px", fontSize: 18, fontWeight: 700 }}>Automation Depth vs. Market Breadth</h3>
-      <p style={{ color: C.textMuted, margin: "0 0 16px", fontSize: 13 }}>Bubble size = log revenue. Showing {data.length} platforms. Overlapping points are spread apart.</p>
-      <ResponsiveContainer width="100%" height={560}>
-        <ScatterChart margin={{ top: 20, right: 40, bottom: 40, left: 30 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke={C.border} />
-          <XAxis type="number" dataKey="x" domain={[0, 11]} tick={{ fill: C.textMuted, fontSize: 11 }} label={{ value: "Market Breadth \u2192", position: "bottom", offset: 15, fill: C.textMuted, fontSize: 12 }} />
-          <YAxis type="number" dataKey="y" domain={[0, 11]} tick={{ fill: C.textMuted, fontSize: 11 }} label={{ value: "AI Automation Depth \u2192", angle: -90, position: "insideLeft", offset: -10, fill: C.textMuted, fontSize: 12 }} />
-          <ZAxis type="number" dataKey="z" range={[40, 600]} />
-          <Tooltip content={<TT />} />
-          <Scatter data={chartData}>
-            {chartData.map((e, i) => <Cell key={i} fill={CAT_COLORS[e.category] || C.accent} fillOpacity={0.8} stroke={CAT_COLORS[e.category] || C.accent} strokeWidth={1} />)}
-            <LabelList dataKey="name" content={renderLabel} />
-          </Scatter>
-        </ScatterChart>
-      </ResponsiveContainer>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
+        <div>
+          <h3 style={{ color: t.text, margin: 0, fontSize: 18, fontWeight: 700 }}>Automation Depth vs. Market Breadth</h3>
+          <p style={{ color: t.textMuted, margin: "4px 0 0", fontSize: 13 }}>
+            Bubble size = log revenue. Showing {data.length} platforms. Drag to zoom.
+          </p>
+        </div>
+        {isZoomed && (
+          <button
+            onClick={() => setZoom({ x: [0, 11], y: [0, 11] })}
+            style={{
+              background: t.accent, color: "#fff", border: "none", borderRadius: 6,
+              padding: "6px 14px", fontSize: 12, fontWeight: 600, cursor: "pointer",
+              whiteSpace: "nowrap",
+            }}
+          >
+            Reset Zoom
+          </button>
+        )}
+      </div>
+      <div
+        ref={chartRef}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={() => { setDragStart(null); setDragEnd(null); }}
+        style={{ cursor: dragStart ? "crosshair" : "crosshair", userSelect: "none" }}
+      >
+        <ResponsiveContainer width="100%" height={560}>
+          <ScatterChart margin={CHART_MARGIN}>
+            <CartesianGrid strokeDasharray="3 3" stroke={t.border} />
+            <XAxis type="number" dataKey="x" domain={zoom.x} tick={{ fill: t.textMuted, fontSize: 11 }} label={{ value: "Market Breadth \u2192", position: "bottom", offset: 15, fill: t.textMuted, fontSize: 12 }} allowDataOverflow />
+            <YAxis type="number" dataKey="y" domain={zoom.y} tick={{ fill: t.textMuted, fontSize: 11 }} label={{ value: "AI Automation Depth \u2192", angle: -90, position: "insideLeft", offset: -10, fill: t.textMuted, fontSize: 12 }} allowDataOverflow />
+            <ZAxis type="number" dataKey="z" range={[40, 600]} />
+            <Tooltip content={<TT />} />
+            <Scatter data={chartData} isAnimationActive={false}>
+              {chartData.map((e, i) => <Cell key={i} fill={CAT_COLORS[e.category] || t.accent} fillOpacity={0.8} stroke={CAT_COLORS[e.category] || t.accent} strokeWidth={1} />)}
+              <LabelList dataKey="name" content={renderLabel} />
+            </Scatter>
+            {dragStart && dragEnd && (
+              <ReferenceArea
+                x1={dragStart.x} x2={dragEnd.x}
+                y1={dragStart.y} y2={dragEnd.y}
+                stroke={t.accent} strokeOpacity={0.6}
+                fill={t.accent} fillOpacity={0.1}
+              />
+            )}
+          </ScatterChart>
+        </ResponsiveContainer>
+      </div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 12 }}>
         {[
-          { label: "AI Leaders (High depth, Broad reach)", names: "Sierra, Intercom, Ada, Decagon", color: C.purple },
-          { label: "Incumbents (Broad reach, Lower AI)", names: "Zendesk, Salesforce, ServiceNow, Microsoft", color: C.accent },
-          { label: "AI Niche (High depth, Narrow)", names: "Parloa, Giga, Maven AGI, Nurix", color: C.pink },
-          { label: "Traditional Niche", names: "Help Scout, Tidio, Dixa, Pylon", color: C.warning },
+          { label: "AI Leaders (High depth, Broad reach)", names: "Sierra, Intercom, Ada, Decagon", color: t.purple },
+          { label: "Incumbents (Broad reach, Lower AI)", names: "Zendesk, Salesforce, ServiceNow, Microsoft", color: t.accent },
+          { label: "AI Niche (High depth, Narrow)", names: "Parloa, Giga, Maven AGI, Nurix", color: t.pink },
+          { label: "Traditional Niche", names: "Help Scout, Tidio, Dixa, Pylon", color: t.warning },
         ].map(q => (
-          <div key={q.label} style={{ background: C.surfaceHover, borderRadius: 8, padding: "10px 14px", borderLeft: `3px solid ${q.color}` }}>
+          <div key={q.label} style={{ background: t.surfaceHover, borderRadius: 8, padding: "10px 14px", borderLeft: `3px solid ${q.color}` }}>
             <div style={{ color: q.color, fontSize: 12, fontWeight: 600 }}>{q.label}</div>
-            <div style={{ color: C.textMuted, fontSize: 11, marginTop: 2 }}>{q.names}</div>
+            <div style={{ color: t.textMuted, fontSize: 11, marginTop: 2 }}>{q.names}</div>
           </div>
         ))}
       </div>
@@ -225,31 +320,32 @@ function PositioningMatrix({ data }) {
 
 // ── 2. REVENUE ──
 function RevenueFunding({ data }) {
+  const t = useTheme();
   const top = [...data].filter(c => c.revenue > 0).sort((a, b) => b.revenue - a.revenue).slice(0, 20);
   return (
     <div>
-      <h3 style={{ color: C.text, margin: "0 0 4px", fontSize: 18, fontWeight: 700 }}>Revenue / ARR Comparison</h3>
-      <p style={{ color: C.textMuted, margin: "0 0 16px", fontSize: 13 }}>Showing {top.length} platforms. Mix of public filings, reported ARR, and industry estimates.</p>
+      <h3 style={{ color: t.text, margin: "0 0 4px", fontSize: 18, fontWeight: 700 }}>Revenue / ARR Comparison</h3>
+      <p style={{ color: t.textMuted, margin: "0 0 16px", fontSize: 13 }}>Showing {top.length} platforms. Mix of public filings, reported ARR, and industry estimates.</p>
       <ResponsiveContainer width="100%" height={Math.max(top.length * 32, 200)}>
         <BarChart data={top} layout="vertical" margin={{ top: 5, right: 50, bottom: 5, left: 120 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke={C.border} horizontal={false} />
-          <XAxis type="number" tick={{ fill: C.textMuted, fontSize: 11 }} tickFormatter={v => v >= 1000 ? `$${(v/1000).toFixed(1)}B` : `$${v}M`} />
-          <YAxis type="category" dataKey="name" tick={{ fill: C.text, fontSize: 12 }} width={110} />
+          <CartesianGrid strokeDasharray="3 3" stroke={t.border} horizontal={false} />
+          <XAxis type="number" tick={{ fill: t.textMuted, fontSize: 11 }} tickFormatter={v => v >= 1000 ? `$${(v/1000).toFixed(1)}B` : `$${v}M`} />
+          <YAxis type="category" dataKey="name" tick={{ fill: t.text, fontSize: 12 }} width={110} />
           <Tooltip content={({ active, payload }) => {
             if (!active || !payload?.length) return null;
             const d = payload[0]?.payload;
             return (
-              <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 14px" }}>
-                <div style={{ fontWeight: 700, color: C.text, fontSize: 14 }}>{d.name}</div>
-                <div style={{ color: C.accent, fontSize: 13, marginTop: 4 }}>{d.revenueLabel}</div>
-                <div style={{ color: C.textMuted, fontSize: 12 }}>{d.fundingOrVal}</div>
-                <div style={{ color: C.textMuted, fontSize: 11, marginTop: 4 }}>{d.category}</div>
+              <div style={{ background: t.surface, border: `1px solid ${t.border}`, borderRadius: 8, padding: "10px 14px" }}>
+                <div style={{ fontWeight: 700, color: t.text, fontSize: 14 }}>{d.name}</div>
+                <div style={{ color: t.accent, fontSize: 13, marginTop: 4 }}>{d.revenueLabel}</div>
+                <div style={{ color: t.textMuted, fontSize: 12 }}>{d.fundingOrVal}</div>
+                <div style={{ color: t.textMuted, fontSize: 11, marginTop: 4 }}>{d.category}</div>
               </div>
             );
           }} />
           <Bar dataKey="revenue" radius={[0, 4, 4, 0]}>
-            {top.map((e, i) => <Cell key={i} fill={CAT_COLORS[e.category] || C.accent} fillOpacity={0.85} />)}
-            <LabelList dataKey="revenueLabel" position="right" style={{ fill: C.textMuted, fontSize: 10 }} />
+            {top.map((e, i) => <Cell key={i} fill={CAT_COLORS[e.category] || t.accent} fillOpacity={0.85} />)}
+            <LabelList dataKey="revenueLabel" position="right" style={{ fill: t.textMuted, fontSize: 10 }} />
           </Bar>
         </BarChart>
       </ResponsiveContainer>
@@ -259,6 +355,7 @@ function RevenueFunding({ data }) {
 
 // ── 3. PRICING ──
 function PricingModels({ data }) {
+  const t = useTheme();
   const types = [
     { model: "Seat-based", count: 0 }, { model: "Per-resolution", count: 0 },
     { model: "Seat + Resolution", count: 0 }, { model: "Usage / Conversation", count: 0 },
@@ -276,47 +373,47 @@ function PricingModels({ data }) {
     else if (pm.includes("usage") || pm.includes("conversation") || pm.includes("contact") || pm.includes("ticket") || pm.includes("issue") || pm.includes("minute") || pm.includes("population")) types[3].count++;
     else types[5].count++;
   });
-  const pieColors = [C.accent, C.purple, C.pink, C.cyan, C.success, C.warning, C.orange, C.lime];
+  const pieColors = [t.accent, t.purple, t.pink, t.cyan, t.success, t.warning, t.orange, t.lime];
   const resData = data.filter(c => c.resolutionPrice).sort((a, b) => a.resolutionPrice - b.resolutionPrice).map(c => ({ name: c.name, price: c.resolutionPrice, category: c.category }));
 
   return (
     <div>
-      <h3 style={{ color: C.text, margin: "0 0 4px", fontSize: 18, fontWeight: 700 }}>Pricing Model Distribution</h3>
-      <p style={{ color: C.textMuted, margin: "0 0 16px", fontSize: 13 }}>Showing {data.length} platforms.</p>
+      <h3 style={{ color: t.text, margin: "0 0 4px", fontSize: 18, fontWeight: 700 }}>Pricing Model Distribution</h3>
+      <p style={{ color: t.textMuted, margin: "0 0 16px", fontSize: 13 }}>Showing {data.length} platforms.</p>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
         <div>
           <ResponsiveContainer width="100%" height={340}>
             <PieChart>
-              <Pie data={types.filter(p => p.count > 0)} dataKey="count" nameKey="model" cx="50%" cy="50%" outerRadius={130} innerRadius={60} paddingAngle={2} label={({ model, count }) => `${model} (${count})`} labelLine={{ stroke: C.textMuted }} style={{ fontSize: 11 }}>
+              <Pie data={types.filter(p => p.count > 0)} dataKey="count" nameKey="model" cx="50%" cy="50%" outerRadius={130} innerRadius={60} paddingAngle={2} label={({ model, count }) => `${model} (${count})`} labelLine={{ stroke: t.textMuted }} style={{ fontSize: 11 }}>
                 {types.filter(p => p.count > 0).map((_, i) => <Cell key={i} fill={pieColors[i % pieColors.length]} />)}
               </Pie>
-              <Tooltip contentStyle={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 12 }} />
+              <Tooltip contentStyle={{ background: t.surface, border: `1px solid ${t.border}`, borderRadius: 8, fontSize: 12 }} />
             </PieChart>
           </ResponsiveContainer>
         </div>
         <div>
-          <div style={{ color: C.text, fontWeight: 600, fontSize: 14, marginBottom: 12 }}>Per-Resolution Price Comparison</div>
+          <div style={{ color: t.text, fontWeight: 600, fontSize: 14, marginBottom: 12 }}>Per-Resolution Price Comparison</div>
           {resData.length > 0 ? (
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={resData} margin={{ top: 5, right: 20, bottom: 5, left: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke={C.border} />
-                <XAxis dataKey="name" tick={{ fill: C.textMuted, fontSize: 10 }} angle={-35} textAnchor="end" height={70} />
-                <YAxis tick={{ fill: C.textMuted, fontSize: 11 }} tickFormatter={v => `$${v.toFixed(2)}`} domain={[0, "auto"]} />
-                <Tooltip formatter={v => [`$${v.toFixed(2)}`, "Per Resolution"]} contentStyle={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 12 }} />
+                <CartesianGrid strokeDasharray="3 3" stroke={t.border} />
+                <XAxis dataKey="name" tick={{ fill: t.textMuted, fontSize: 10 }} angle={-35} textAnchor="end" height={70} />
+                <YAxis tick={{ fill: t.textMuted, fontSize: 11 }} tickFormatter={v => `$${v.toFixed(2)}`} domain={[0, "auto"]} />
+                <Tooltip formatter={v => [`$${v.toFixed(2)}`, "Per Resolution"]} contentStyle={{ background: t.surface, border: `1px solid ${t.border}`, borderRadius: 8, fontSize: 12 }} />
                 <Bar dataKey="price" radius={[4, 4, 0, 0]}>
-                  {resData.map((e, i) => <Cell key={i} fill={e.name === "Zendesk" ? C.danger : e.name === "Ada" ? C.orange : e.name === "Intercom" ? C.warning : C.success} />)}
-                  <LabelList dataKey="price" position="top" formatter={v => `$${v.toFixed(2)}`} style={{ fill: C.text, fontSize: 11, fontWeight: 600 }} />
+                  {resData.map((e, i) => <Cell key={i} fill={e.name === "Zendesk" ? t.danger : e.name === "Ada" ? t.orange : e.name === "Intercom" ? t.warning : t.success} />)}
+                  <LabelList dataKey="price" position="top" formatter={v => `$${v.toFixed(2)}`} style={{ fill: t.text, fontSize: 11, fontWeight: 600 }} />
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
           ) : (
-            <div style={{ color: C.textMuted, fontSize: 13, padding: 40, textAlign: "center" }}>No platforms with published per-resolution pricing in this selection.</div>
+            <div style={{ color: t.textMuted, fontSize: 13, padding: 40, textAlign: "center" }}>No platforms with published per-resolution pricing in this selection.</div>
           )}
         </div>
       </div>
-      <div style={{ marginTop: 16, background: C.surfaceHover, borderRadius: 8, padding: "12px 16px" }}>
-        <div style={{ color: C.warning, fontWeight: 600, fontSize: 13, marginBottom: 6 }}>Key Insight: The Seat vs. Resolution Tension</div>
-        <div style={{ color: C.textMuted, fontSize: 12, lineHeight: 1.6 }}>
+      <div style={{ marginTop: 16, background: t.surfaceHover, borderRadius: 8, padding: "12px 16px" }}>
+        <div style={{ color: t.warning, fontWeight: 600, fontSize: 13, marginBottom: 6 }}>Key Insight: The Seat vs. Resolution Tension</div>
+        <div style={{ color: t.textMuted, fontSize: 12, lineHeight: 1.6 }}>
           Zendesk&apos;s $1.50/resolution is 52% more expensive than Intercom&apos;s $0.99 and 3x Tidio&apos;s $0.50. The market is splitting: incumbents stack seat + resolution fees, while AI-first players move to pure usage/outcome models. Botpress&apos;s transparent pricing undercuts both approaches.
         </div>
       </div>
@@ -326,6 +423,7 @@ function PricingModels({ data }) {
 
 // ── 4. AI MATURITY ──
 function AIMaturity({ data }) {
+  const t = useTheme();
   const sorted = [...data].sort((a, b) => b.aiScore - a.aiScore);
   const getColor = (s) => s >= 9 ? "#7c3aed" : s >= 7 ? "#3b82f6" : s >= 5 ? "#06b6d4" : s >= 3 ? "#f59e0b" : "#6b7280";
   const postureGroups = {};
@@ -336,27 +434,27 @@ function AIMaturity({ data }) {
 
   return (
     <div>
-      <h3 style={{ color: C.text, margin: "0 0 4px", fontSize: 18, fontWeight: 700 }}>AI Maturity Scorecard</h3>
-      <p style={{ color: C.textMuted, margin: "0 0 16px", fontSize: 13 }}>Showing {data.length} platforms. Scored 1-10 on AI capability depth.</p>
+      <h3 style={{ color: t.text, margin: "0 0 4px", fontSize: 18, fontWeight: 700 }}>AI Maturity Scorecard</h3>
+      <p style={{ color: t.textMuted, margin: "0 0 16px", fontSize: 13 }}>Showing {data.length} platforms. Scored 1-10 on AI capability depth.</p>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(155px, 1fr))", gap: 6 }}>
         {sorted.map(c => (
-          <div key={c.name} style={{ background: C.surfaceHover, borderRadius: 8, padding: "10px 12px", borderLeft: `4px solid ${getColor(c.aiScore)}` }}>
+          <div key={c.name} style={{ background: t.surfaceHover, borderRadius: 8, padding: "10px 12px", borderLeft: `4px solid ${getColor(c.aiScore)}` }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <span style={{ color: C.text, fontSize: 12, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 100 }}>{c.name}</span>
+              <span style={{ color: t.text, fontSize: 12, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 100 }}>{c.name}</span>
               <span style={{ color: "#fff", background: getColor(c.aiScore), borderRadius: 12, padding: "2px 8px", fontSize: 11, fontWeight: 700, minWidth: 28, textAlign: "center" }}>{c.aiScore}</span>
             </div>
-            <span style={{ color: AI_COLORS[c.aiPosture] || C.textMuted, fontSize: 10 }}>{c.aiPosture}</span>
+            <span style={{ color: AI_COLORS[c.aiPosture] || t.textMuted, fontSize: 10 }}>{c.aiPosture}</span>
           </div>
         ))}
       </div>
       {Object.keys(postureGroups).length > 0 && (
         <div style={{ marginTop: 20 }}>
-          <div style={{ color: C.text, fontWeight: 600, fontSize: 14, marginBottom: 10 }}>AI Posture Breakdown</div>
+          <div style={{ color: t.text, fontWeight: 600, fontSize: 14, marginBottom: 10 }}>AI Posture Breakdown</div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 10 }}>
             {Object.entries(postureGroups).map(([posture, names]) => (
-              <div key={posture} style={{ background: C.surfaceHover, borderRadius: 8, padding: "10px 14px", borderTop: `3px solid ${AI_COLORS[posture] || C.textMuted}` }}>
-                <div style={{ color: AI_COLORS[posture] || C.textMuted, fontWeight: 600, fontSize: 13 }}>{posture} ({names.length})</div>
-                <div style={{ color: C.textMuted, fontSize: 11, marginTop: 4, lineHeight: 1.5 }}>{names.join(", ")}</div>
+              <div key={posture} style={{ background: t.surfaceHover, borderRadius: 8, padding: "10px 14px", borderTop: `3px solid ${AI_COLORS[posture] || t.textMuted}` }}>
+                <div style={{ color: AI_COLORS[posture] || t.textMuted, fontWeight: 600, fontSize: 13 }}>{posture} ({names.length})</div>
+                <div style={{ color: t.textMuted, fontSize: 11, marginTop: 4, lineHeight: 1.5 }}>{names.join(", ")}</div>
               </div>
             ))}
           </div>
@@ -368,6 +466,7 @@ function AIMaturity({ data }) {
 
 // ── 5. COMPETITIVE DYNAMICS ──
 function CompetitiveDynamics({ data }) {
+  const t = useTheme();
   const allGrowth = [
     { name: "Sierra", signal: "Explosive", detail: "$0\u2192$100M ARR in 7 quarters, $10B val", score: 10, category: "AI-First" },
     { name: "Crescendo", signal: "Explosive", detail: "$0\u2192$100M projected in <2 years", score: 10, category: "Managed Service" },
@@ -395,55 +494,55 @@ function CompetitiveDynamics({ data }) {
 
   return (
     <div>
-      <h3 style={{ color: C.text, margin: "0 0 4px", fontSize: 18, fontWeight: 700 }}>Competitive Dynamics & Growth Trajectories</h3>
-      <p style={{ color: C.textMuted, margin: "0 0 16px", fontSize: 13 }}>Showing {growthData.length} platforms with growth signals.</p>
+      <h3 style={{ color: t.text, margin: "0 0 4px", fontSize: 18, fontWeight: 700 }}>Competitive Dynamics & Growth Trajectories</h3>
+      <p style={{ color: t.textMuted, margin: "0 0 16px", fontSize: 13 }}>Showing {growthData.length} platforms with growth signals.</p>
       {growthData.length > 0 ? (
         <>
-          <div style={{ color: C.text, fontWeight: 600, fontSize: 14, marginBottom: 10 }}>Growth Momentum</div>
+          <div style={{ color: t.text, fontWeight: 600, fontSize: 14, marginBottom: 10 }}>Growth Momentum</div>
           <ResponsiveContainer width="100%" height={Math.max(growthData.length * 35, 120)}>
             <BarChart data={growthData} layout="vertical" margin={{ top: 5, right: 40, bottom: 5, left: 90 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke={C.border} horizontal={false} />
-              <XAxis type="number" domain={[0, 10]} tick={{ fill: C.textMuted, fontSize: 11 }} />
-              <YAxis type="category" dataKey="name" tick={{ fill: C.text, fontSize: 12 }} width={80} />
+              <CartesianGrid strokeDasharray="3 3" stroke={t.border} horizontal={false} />
+              <XAxis type="number" domain={[0, 10]} tick={{ fill: t.textMuted, fontSize: 11 }} />
+              <YAxis type="category" dataKey="name" tick={{ fill: t.text, fontSize: 12 }} width={80} />
               <Tooltip content={({ active, payload }) => {
                 if (!active || !payload?.length) return null;
                 const d = payload[0]?.payload;
                 return (
-                  <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 14px" }}>
-                    <div style={{ fontWeight: 700, color: C.text }}>{d.name}</div>
-                    <div style={{ color: C.accent, fontSize: 12, marginTop: 2 }}>{d.signal}</div>
-                    <div style={{ color: C.textMuted, fontSize: 12, marginTop: 2 }}>{d.detail}</div>
+                  <div style={{ background: t.surface, border: `1px solid ${t.border}`, borderRadius: 8, padding: "10px 14px" }}>
+                    <div style={{ fontWeight: 700, color: t.text }}>{d.name}</div>
+                    <div style={{ color: t.accent, fontSize: 12, marginTop: 2 }}>{d.signal}</div>
+                    <div style={{ color: t.textMuted, fontSize: 12, marginTop: 2 }}>{d.detail}</div>
                   </div>
                 );
               }} />
               <Bar dataKey="score" radius={[0, 4, 4, 0]}>
-                {growthData.map((e, i) => <Cell key={i} fill={e.score >= 8 ? C.success : e.score >= 5 ? C.warning : C.danger} fillOpacity={0.85} />)}
+                {growthData.map((e, i) => <Cell key={i} fill={e.score >= 8 ? t.success : e.score >= 5 ? t.warning : t.danger} fillOpacity={0.85} />)}
               </Bar>
             </BarChart>
           </ResponsiveContainer>
         </>
       ) : (
-        <div style={{ color: C.textMuted, fontSize: 13, padding: 40, textAlign: "center" }}>No growth data for selected categories.</div>
+        <div style={{ color: t.textMuted, fontSize: 13, padding: 40, textAlign: "center" }}>No growth data for selected categories.</div>
       )}
       {flanking.length > 0 && (
         <>
-          <div style={{ color: C.text, fontWeight: 600, fontSize: 14, marginBottom: 10, marginTop: 20 }}>Flanking Moves</div>
+          <div style={{ color: t.text, fontWeight: 600, fontSize: 14, marginBottom: 10, marginTop: 20 }}>Flanking Moves</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {flanking.map((f, i) => (
-              <div key={i} style={{ background: C.surfaceHover, borderRadius: 8, padding: "10px 14px", display: "grid", gridTemplateColumns: "100px 16px 140px 1fr", alignItems: "center", gap: 8 }}>
-                <span style={{ color: C.success, fontWeight: 700, fontSize: 13 }}>{f.attacker}</span>
-                <span style={{ color: C.textMuted }}>\u2192</span>
-                <span style={{ color: C.danger, fontWeight: 600, fontSize: 13 }}>{f.target}</span>
-                <span style={{ color: C.textMuted, fontSize: 12 }}>{f.angle}</span>
+              <div key={i} style={{ background: t.surfaceHover, borderRadius: 8, padding: "10px 14px", display: "grid", gridTemplateColumns: "100px 16px 140px 1fr", alignItems: "center", gap: 8 }}>
+                <span style={{ color: t.success, fontWeight: 700, fontSize: 13 }}>{f.attacker}</span>
+                <span style={{ color: t.textMuted }}>{"\u2192"}</span>
+                <span style={{ color: t.danger, fontWeight: 600, fontSize: 13 }}>{f.target}</span>
+                <span style={{ color: t.textMuted, fontSize: 12 }}>{f.angle}</span>
               </div>
             ))}
           </div>
         </>
       )}
-      <div style={{ marginTop: 20, background: C.surfaceHover, borderRadius: 8, padding: "14px 16px", borderLeft: `3px solid ${C.danger}` }}>
-        <div style={{ color: C.danger, fontWeight: 600, fontSize: 13, marginBottom: 6 }}>Consolidation Watch</div>
-        <div style={{ color: C.textMuted, fontSize: 12, lineHeight: 1.6 }}>
-          Cognigy acquired by NICE ($955M) \u00b7 Kustomer spun off from Meta ($250M) \u00b7 Helpshift acquired by Keywords Studios ($75M) \u00b7 Zendesk planning 2+ more acquisitions in 2026 \u00b7 PE-backed Zendesk targeting IPO/sale within 3-5 years \u00b7 Sprinklr market cap collapsed from $7B to $1.5B
+      <div style={{ marginTop: 20, background: t.surfaceHover, borderRadius: 8, padding: "14px 16px", borderLeft: `3px solid ${t.danger}` }}>
+        <div style={{ color: t.danger, fontWeight: 600, fontSize: 13, marginBottom: 6 }}>Consolidation Watch</div>
+        <div style={{ color: t.textMuted, fontSize: 12, lineHeight: 1.6 }}>
+          Cognigy acquired by NICE ($955M) {"\u00b7"} Kustomer spun off from Meta ($250M) {"\u00b7"} Helpshift acquired by Keywords Studios ($75M) {"\u00b7"} Zendesk planning 2+ more acquisitions in 2026 {"\u00b7"} PE-backed Zendesk targeting IPO/sale within 3-5 years {"\u00b7"} Sprinklr market cap collapsed from $7B to $1.5B
         </div>
       </div>
     </div>
@@ -454,17 +553,17 @@ function CompetitiveDynamics({ data }) {
 export default function Dashboard() {
   const [activeTab, setActiveTab] = useState("matrix");
   const [selectedCats, setSelectedCats] = useState([...ALL_CATEGORIES]);
+  const [mode, setMode] = useState("dark");
+  const t = mode === "dark" ? DARK : LIGHT;
 
   const handleToggle = (cat) => {
     if (cat === "ALL") {
       setSelectedCats([...ALL_CATEGORIES]);
       return;
     }
-    // If already isolated on this category, go back to all
     if (selectedCats.length === 1 && selectedCats[0] === cat) {
       setSelectedCats([...ALL_CATEGORIES]);
     } else {
-      // Isolate: show only this category
       setSelectedCats([cat]);
     }
   };
@@ -486,53 +585,69 @@ export default function Dashboard() {
   };
 
   return (
-    <div style={{ background: C.bg, minHeight: "100vh", fontFamily: "'DM Sans', 'Segoe UI', system-ui, sans-serif", color: C.text, padding: "24px 28px" }}>
-      {/* Header */}
-      <div style={{ marginBottom: 24 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
-          <div style={{ width: 8, height: 8, borderRadius: "50%", background: C.accent }} />
-          <span style={{ color: C.textMuted, fontSize: 12, textTransform: "uppercase", letterSpacing: 1.5, fontWeight: 600 }}>Botpress Competitive Intelligence</span>
-        </div>
-        <h1 style={{ margin: "8px 0 0", fontSize: 26, fontWeight: 800, background: `linear-gradient(135deg, ${C.text}, ${C.accent})`, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
-          AI Customer Service — Competitive Landscape
-        </h1>
-        <p style={{ color: C.textMuted, fontSize: 13, margin: "6px 0 0" }}>
-          {filtered.length} of {competitors.length} platforms \u00b7 Revenue, pricing, AI maturity, and competitive dynamics
-        </p>
-      </div>
-
-      {/* Category Filter */}
-      <CategoryFilter selected={selectedCats} onToggle={handleToggle} />
-
-      {/* Tabs */}
-      <div style={{ display: "flex", gap: 4, marginBottom: 24, background: C.surface, borderRadius: 10, padding: 4, border: `1px solid ${C.border}` }}>
-        {TABS.map(tab => (
-          <button key={tab.id} onClick={() => setActiveTab(tab.id)} style={{
-            background: activeTab === tab.id ? C.accent : "transparent",
-            color: activeTab === tab.id ? "#fff" : C.textMuted,
-            border: "none", borderRadius: 8, padding: "8px 18px",
-            fontSize: 13, fontWeight: 600, cursor: "pointer", transition: "all 0.2s",
-          }}>
-            {tab.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Content */}
-      <div style={{ background: C.surface, borderRadius: 12, padding: "24px 28px", border: `1px solid ${C.border}` }}>
-        {filtered.length > 0 ? renderTab() : (
-          <div style={{ textAlign: "center", padding: 60, color: C.textMuted }}>
-            <div style={{ fontSize: 32, marginBottom: 12 }}>&#128269;</div>
-            <div style={{ fontSize: 15, fontWeight: 600, color: C.text }}>No categories selected</div>
-            <div style={{ fontSize: 13, marginTop: 4 }}>Click a category above to see platforms</div>
+    <ThemeContext.Provider value={t}>
+      <div style={{ background: t.bg, minHeight: "100vh", fontFamily: "'DM Sans', 'Segoe UI', system-ui, sans-serif", color: t.text, padding: "24px 28px", transition: "background 0.3s, color 0.3s" }}>
+        {/* Header */}
+        <div style={{ marginBottom: 24 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <div style={{ width: 8, height: 8, borderRadius: "50%", background: t.accent }} />
+              <span style={{ color: t.textMuted, fontSize: 12, textTransform: "uppercase", letterSpacing: 1.5, fontWeight: 600 }}>Botpress Competitive Intelligence</span>
+            </div>
+            <button
+              onClick={() => setMode(m => m === "dark" ? "light" : "dark")}
+              style={{
+                background: t.surface, border: `1px solid ${t.border}`, borderRadius: 8,
+                padding: "6px 12px", cursor: "pointer", display: "flex", alignItems: "center", gap: 6,
+                color: t.text, fontSize: 13, fontWeight: 500, transition: "all 0.2s",
+              }}
+              title={mode === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+            >
+              <span style={{ fontSize: 16 }}>{mode === "dark" ? "\u2600\uFE0F" : "\uD83C\uDF19"}</span>
+              {mode === "dark" ? "Light" : "Dark"}
+            </button>
           </div>
-        )}
-      </div>
+          <h1 style={{ margin: "8px 0 0", fontSize: 26, fontWeight: 800, background: `linear-gradient(135deg, ${t.text}, ${t.accent})`, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
+            AI Customer Service — Competitive Landscape
+          </h1>
+          <p style={{ color: t.textMuted, fontSize: 13, margin: "6px 0 0" }}>
+            {filtered.length} of {competitors.length} platforms {"\u00b7"} Revenue, pricing, AI maturity, and competitive dynamics
+          </p>
+        </div>
 
-      {/* Footer */}
-      <div style={{ marginTop: 16, color: C.textMuted, fontSize: 11, textAlign: "center" }}>
-        Data sourced from company filings, Crunchbase, G2, Gartner, Latka, press releases \u00b7 Estimates flagged where applicable \u00b7 March 2026
+        {/* Category Filter */}
+        <CategoryFilter selected={selectedCats} onToggle={handleToggle} />
+
+        {/* Tabs */}
+        <div style={{ display: "flex", gap: 4, marginBottom: 24, background: t.surface, borderRadius: 10, padding: 4, border: `1px solid ${t.border}` }}>
+          {TABS.map(tab => (
+            <button key={tab.id} onClick={() => setActiveTab(tab.id)} style={{
+              background: activeTab === tab.id ? t.accent : "transparent",
+              color: activeTab === tab.id ? "#fff" : t.textMuted,
+              border: "none", borderRadius: 8, padding: "8px 18px",
+              fontSize: 13, fontWeight: 600, cursor: "pointer", transition: "all 0.2s",
+            }}>
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Content */}
+        <div style={{ background: t.surface, borderRadius: 12, padding: "24px 28px", border: `1px solid ${t.border}` }}>
+          {filtered.length > 0 ? renderTab() : (
+            <div style={{ textAlign: "center", padding: 60, color: t.textMuted }}>
+              <div style={{ fontSize: 32, marginBottom: 12 }}>&#128269;</div>
+              <div style={{ fontSize: 15, fontWeight: 600, color: t.text }}>No categories selected</div>
+              <div style={{ fontSize: 13, marginTop: 4 }}>Click a category above to see platforms</div>
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div style={{ marginTop: 16, color: t.textMuted, fontSize: 11, textAlign: "center" }}>
+          Data sourced from company filings, Crunchbase, G2, Gartner, Latka, press releases {"\u00b7"} Estimates flagged where applicable {"\u00b7"} March 2026
+        </div>
       </div>
-    </div>
+    </ThemeContext.Provider>
   );
 }
