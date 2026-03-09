@@ -387,7 +387,7 @@ function PricingModels({ data }) {
               <Pie data={types.filter(p => p.count > 0)} dataKey="count" nameKey="model" cx="50%" cy="50%" outerRadius={130} innerRadius={60} paddingAngle={2} label={({ model, count }) => `${model} (${count})`} labelLine={{ stroke: t.textMuted }} style={{ fontSize: 11 }}>
                 {types.filter(p => p.count > 0).map((_, i) => <Cell key={i} fill={pieColors[i % pieColors.length]} />)}
               </Pie>
-              <Tooltip contentStyle={{ background: t.surface, border: `1px solid ${t.border}`, borderRadius: 8, fontSize: 12 }} />
+              <Tooltip contentStyle={{ background: t.surface, border: `1px solid ${t.border}`, borderRadius: 8, fontSize: 12, color: t.text }} itemStyle={{ color: t.text }} />
             </PieChart>
           </ResponsiveContainer>
         </div>
@@ -399,7 +399,7 @@ function PricingModels({ data }) {
                 <CartesianGrid strokeDasharray="3 3" stroke={t.border} />
                 <XAxis dataKey="name" tick={{ fill: t.textMuted, fontSize: 10 }} angle={-35} textAnchor="end" height={70} />
                 <YAxis tick={{ fill: t.textMuted, fontSize: 11 }} tickFormatter={v => `$${v.toFixed(2)}`} domain={[0, "auto"]} />
-                <Tooltip formatter={v => [`$${v.toFixed(2)}`, "Per Resolution"]} contentStyle={{ background: t.surface, border: `1px solid ${t.border}`, borderRadius: 8, fontSize: 12 }} />
+                <Tooltip formatter={v => [`$${v.toFixed(2)}`, "Per Resolution"]} contentStyle={{ background: t.surface, border: `1px solid ${t.border}`, borderRadius: 8, fontSize: 12, color: t.text }} itemStyle={{ color: t.text }} labelStyle={{ color: t.textMuted }} />
                 <Bar dataKey="price" radius={[4, 4, 0, 0]}>
                   {resData.map((e, i) => <Cell key={i} fill={e.name === "Zendesk" ? t.danger : e.name === "Ada" ? t.orange : e.name === "Intercom" ? t.warning : t.success} />)}
                   <LabelList dataKey="price" position="top" formatter={v => `$${v.toFixed(2)}`} style={{ fill: t.text, fontSize: 11, fontWeight: 600 }} />
