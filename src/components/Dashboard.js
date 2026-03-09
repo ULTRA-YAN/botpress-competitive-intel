@@ -182,14 +182,8 @@ function PositioningMatrix({ data }) {
     const { x, y, value, index } = props;
     const item = chartData[index];
     if (!item) return null;
-    const domainX = item.x;
-    const domainY = item.y;
-    let dx = 0, dy = -14, anchor = "middle";
-    if (domainX >= 9.5) { dx = -10; dy = 4; anchor = "end"; }
-    else if (domainX <= 1.5) { dx = 10; dy = 4; anchor = "start"; }
-    else if (domainY >= 10) { dy = 18; }
     return (
-      <text x={x + dx} y={y + dy} textAnchor={anchor} fill={C.textMuted} fontSize={9} fontWeight={500} style={{ pointerEvents: "none" }}>
+      <text x={x} y={y - 6} textAnchor="middle" fill={C.textMuted} fontSize={9} fontWeight={500} style={{ pointerEvents: "none" }}>
         {value}
       </text>
     );
@@ -463,12 +457,16 @@ export default function Dashboard() {
 
   const handleToggle = (cat) => {
     if (cat === "ALL") {
-      setSelectedCats(selectedCats.length === ALL_CATEGORIES.length ? [] : [...ALL_CATEGORIES]);
+      setSelectedCats([...ALL_CATEGORIES]);
       return;
     }
-    setSelectedCats(prev =>
-      prev.includes(cat) ? prev.filter(c => c !== cat) : [...prev, cat]
-    );
+    // If already isolated on this category, go back to all
+    if (selectedCats.length === 1 && selectedCats[0] === cat) {
+      setSelectedCats([...ALL_CATEGORIES]);
+    } else {
+      // Isolate: show only this category
+      setSelectedCats([cat]);
+    }
   };
 
   const filtered = useMemo(
