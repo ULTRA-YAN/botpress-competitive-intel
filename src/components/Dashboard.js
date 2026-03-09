@@ -146,18 +146,61 @@ function CategoryFilter({ selected, onToggle }) {
   );
 }
 
+// ── JITTER HELPER ──
+function applyJitter(data) {
+  const groups = {};
+  data.forEach((item, idx) => {
+    const key = `${item.x},${item.y}`;
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(idx);
+  });
+  const result = data.map(item => ({ ...item }));
+  Object.values(groups).forEach(indices => {
+    if (indices.length <= 1) return;
+    indices.forEach((dataIdx, i) => {
+      const angle = (2 * Math.PI * i) / indices.length - Math.PI / 2;
+      const radius = 0.45;
+      result[dataIdx] = {
+        ...result[dataIdx],
+        x: result[dataIdx].x + radius * Math.cos(angle),
+        y: result[dataIdx].y + radius * Math.sin(angle),
+      };
+    });
+  });
+  return result;
+}
+
 // ── 1. POSITIONING MATRIX ──
 function PositioningMatrix({ data }) {
-  const chartData = data.map(c => ({
+  const rawData = data.map(c => ({
     ...c, x: c.marketBreadth, y: c.automationDepth,
     z: Math.max(Math.log10(c.revenue || 10) * 120, 80),
   }));
+  const chartData = applyJitter(rawData);
+
+  const renderLabel = (props) => {
+    const { x, y, value, index } = props;
+    const item = chartData[index];
+    if (!item) return null;
+    const domainX = item.x;
+    const domainY = item.y;
+    let dx = 0, dy = -14, anchor = "middle";
+    if (domainX >= 9.5) { dx = -10; dy = 4; anchor = "end"; }
+    else if (domainX <= 1.5) { dx = 10; dy = 4; anchor = "start"; }
+    else if (domainY >= 10) { dy = 18; }
+    return (
+      <text x={x + dx} y={y + dy} textAnchor={anchor} fill={C.textMuted} fontSize={9} fontWeight={500} style={{ pointerEvents: "none" }}>
+        {value}
+      </text>
+    );
+  };
+
   return (
     <div>
       <h3 style={{ color: C.text, margin: "0 0 4px", fontSize: 18, fontWeight: 700 }}>Automation Depth vs. Market Breadth</h3>
-      <p style={{ color: C.textMuted, margin: "0 0 16px", fontSize: 13 }}>Bubble size = log revenue. Showing {data.length} platforms.</p>
-      <ResponsiveContainer width="100%" height={520}>
-        <ScatterChart margin={{ top: 20, right: 30, bottom: 40, left: 30 }}>
+      <p style={{ color: C.textMuted, margin: "0 0 16px", fontSize: 13 }}>Bubble size = log revenue. Showing {data.length} platforms. Overlapping points are spread apart.</p>
+      <ResponsiveContainer width="100%" height={560}>
+        <ScatterChart margin={{ top: 20, right: 40, bottom: 40, left: 30 }}>
           <CartesianGrid strokeDasharray="3 3" stroke={C.border} />
           <XAxis type="number" dataKey="x" domain={[0, 11]} tick={{ fill: C.textMuted, fontSize: 11 }} label={{ value: "Market Breadth \u2192", position: "bottom", offset: 15, fill: C.textMuted, fontSize: 12 }} />
           <YAxis type="number" dataKey="y" domain={[0, 11]} tick={{ fill: C.textMuted, fontSize: 11 }} label={{ value: "AI Automation Depth \u2192", angle: -90, position: "insideLeft", offset: -10, fill: C.textMuted, fontSize: 12 }} />
@@ -165,7 +208,7 @@ function PositioningMatrix({ data }) {
           <Tooltip content={<TT />} />
           <Scatter data={chartData}>
             {chartData.map((e, i) => <Cell key={i} fill={CAT_COLORS[e.category] || C.accent} fillOpacity={0.8} stroke={CAT_COLORS[e.category] || C.accent} strokeWidth={1} />)}
-            <LabelList dataKey="name" position="top" style={{ fill: C.textMuted, fontSize: 9, fontWeight: 500 }} offset={8} />
+            <LabelList dataKey="name" content={renderLabel} />
           </Scatter>
         </ScatterChart>
       </ResponsiveContainer>
