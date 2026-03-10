@@ -86,8 +86,8 @@ const competitors = [
 
 // ── TABS ──
 const TABS = [
+  { id: "dynamics", label: "Competitive Dynamics" },
   { id: "matrix", label: "Positioning Matrix" },
-  { id: "dynamics", label: "Cross Cutting Analysis" },
   { id: "revenue", label: "Revenue & Funding" },
   { id: "pricing", label: "Pricing Models" },
   { id: "aiPosture", label: "AI Maturity" },
@@ -582,9 +582,10 @@ function CompetitiveDynamics({ data }) {
 
 // ── MAIN DASHBOARD ──
 export default function Dashboard() {
-  const [activeTab, setActiveTab] = useState("matrix");
+  const [activeTab, setActiveTab] = useState("dynamics");
   const [selectedCats, setSelectedCats] = useState([...ALL_CATEGORIES]);
-  const t = LIGHT;
+  const [mode, setMode] = useState("light");
+  const t = mode === "dark" ? DARK : LIGHT;
 
   const handleToggle = (cat) => {
     if (cat === "ALL") {
@@ -619,9 +620,23 @@ export default function Dashboard() {
       <div style={{ background: t.bg, minHeight: "100vh", fontFamily: "'DM Sans', 'Segoe UI', system-ui, sans-serif", color: t.text, padding: "24px 28px", transition: "background 0.3s, color 0.3s" }}>
         {/* Header */}
         <div style={{ marginBottom: 24 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <div style={{ width: 8, height: 8, borderRadius: "50%", background: t.accent }} />
-            <span style={{ color: t.textMuted, fontSize: 12, textTransform: "uppercase", letterSpacing: 1.5, fontWeight: 600 }}>Botpress Competitive Intelligence</span>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <div style={{ width: 8, height: 8, borderRadius: "50%", background: t.accent }} />
+              <span style={{ color: t.textMuted, fontSize: 12, textTransform: "uppercase", letterSpacing: 1.5, fontWeight: 600 }}>Botpress Competitive Intelligence</span>
+            </div>
+            <button
+              onClick={() => setMode(m => m === "dark" ? "light" : "dark")}
+              style={{
+                background: t.surface, border: `1px solid ${t.border}`, borderRadius: 8,
+                padding: "6px 12px", cursor: "pointer", display: "flex", alignItems: "center", gap: 6,
+                color: t.text, fontSize: 13, fontWeight: 500, transition: "all 0.2s",
+              }}
+              title={mode === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+            >
+              <span style={{ fontSize: 16 }}>{mode === "dark" ? "\u2600\uFE0F" : "\uD83C\uDF19"}</span>
+              {mode === "dark" ? "Light" : "Dark"}
+            </button>
           </div>
           <h1 style={{ margin: "8px 0 0", fontSize: 26, fontWeight: 800, background: `linear-gradient(135deg, ${t.text}, ${t.accent})`, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
             AI Customer Service — Competitive Landscape
