@@ -22,10 +22,14 @@ export async function GET(request) {
   const limit = parseInt(searchParams.get("limit") || "200");
 
   try {
+    // Only show news from the last 6 months
+    const sixMonthsAgo = new Date(Date.now() - 180 * 24 * 60 * 60 * 1000).toISOString();
+
     // Fetch a larger set to dedupe from (duplicates reduce the count)
     let query = supabase
       .from("intel_updates")
       .select("*")
+      .gte("published_at", sixMonthsAgo)
       .order("published_at", { ascending: false })
       .limit(500);
 
@@ -41,10 +45,11 @@ export async function GET(request) {
     // Deduplicate by headline
     const unique = dedupeByHeadline(data || []);
 
-    // Get category counts from deduplicated set (fetch all for counts)
+    // Get category counts from deduplicated set (last 6 months only)
     const { data: allData } = await supabase
       .from("intel_updates")
       .select("id, headline, category")
+      .gte("published_at", sixMonthsAgo)
       .limit(1000);
 
     const uniqueAll = dedupeByHeadline(allData || []);

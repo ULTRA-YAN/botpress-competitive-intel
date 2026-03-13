@@ -58,7 +58,11 @@ async function fetchGoogleNews(company) {
       });
     }
 
-    return items.slice(0, 3); // top 3 per company
+    // Filter out articles older than 6 months
+    const sixMonthsAgo = new Date(Date.now() - 180 * 24 * 60 * 60 * 1000);
+    const recent = items.filter((item) => new Date(item.published_at) >= sixMonthsAgo);
+
+    return recent.slice(0, 3); // top 3 per company
   } catch (e) {
     console.error(`Error fetching news for ${company}:`, e.message);
     return [];
