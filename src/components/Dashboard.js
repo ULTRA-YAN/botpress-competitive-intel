@@ -790,6 +790,27 @@ function LatestNews() {
   const [filter, setFilter] = useState("all");
   const [categoryCounts, setCategoryCounts] = useState({});
   const [collecting, setCollecting] = useState(false);
+  const [email, setEmail] = useState("");
+  const [subStatus, setSubStatus] = useState(null); // "subscribed" | "exists" | "error"
+
+  const handleSubscribe = async () => {
+    if (!email || !email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
+      setSubStatus("invalid");
+      return;
+    }
+    try {
+      const res = await fetch("/api/subscribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const data = await res.json();
+      setSubStatus(data.status || "subscribed");
+      if (data.status === "subscribed" || data.status === "reactivated") setEmail("");
+    } catch (e) {
+      setSubStatus("error");
+    }
+  };
 
   const fetchUpdates = async () => {
     try {
@@ -897,6 +918,59 @@ function LatestNews() {
           ))}
         </div>
       )}
+
+      {/* Weekly Digest Subscribe */}
+      <div style={{
+        marginTop: 48, padding: "28px 0", borderTop: `1px solid ${t.borderSubtle}`,
+      }}>
+        <div style={SECTION_LABEL(t)}>{"\u25AA"} Weekly Digest</div>
+        <p style={{ fontFamily: t.fontBody, fontSize: 13, color: t.textMuted, marginBottom: 16, marginTop: 8 }}>
+          Get a curated summary of the top competitive moves delivered to your inbox every Monday.
+        </p>
+        <div style={{ display: "flex", gap: 8, alignItems: "center", maxWidth: 480 }}>
+          <input
+            type="email"
+            placeholder="your@email.com"
+            value={email}
+            onChange={(e) => { setEmail(e.target.value); setSubStatus(null); }}
+            onKeyDown={(e) => e.key === "Enter" && handleSubscribe()}
+            style={{
+              flex: 1, background: "transparent", border: "none",
+              borderBottom: `1px solid ${t.borderSubtle}`, padding: "8px 0",
+              fontFamily: t.fontBody, fontSize: 13, color: t.text,
+              outline: "none", transition: "border-color 0.2s",
+            }}
+            onFocus={(e) => e.target.style.borderBottomColor = t.accent}
+            onBlur={(e) => e.target.style.borderBottomColor = t.borderSubtle}
+          />
+          <button
+            onClick={handleSubscribe}
+            style={{
+              background: t.accent, border: "none", borderRadius: 2, padding: "8px 20px",
+              fontFamily: t.fontMono, fontSize: 9, textTransform: "uppercase", letterSpacing: "0.12em",
+              color: "#fff", cursor: "pointer", whiteSpace: "nowrap", transition: "opacity 0.2s",
+            }}
+            onMouseEnter={(e) => e.target.style.opacity = "0.85"}
+            onMouseLeave={(e) => e.target.style.opacity = "1"}
+          >
+            Subscribe
+          </button>
+        </div>
+        {subStatus && (
+          <p style={{
+            fontFamily: t.fontMono, fontSize: 10, marginTop: 10, letterSpacing: "0.05em",
+            color: subStatus === "subscribed" || subStatus === "reactivated" ? t.accentGreen
+              : subStatus === "exists" ? t.textMuted
+              : t.accent,
+          }}>
+            {subStatus === "subscribed" && "\u2713 Subscribed! You\u2019ll receive weekly updates every Monday."}
+            {subStatus === "reactivated" && "\u2713 Welcome back! Your subscription has been reactivated."}
+            {subStatus === "exists" && "You\u2019re already subscribed."}
+            {subStatus === "invalid" && "Please enter a valid email address."}
+            {subStatus === "error" && "Something went wrong. Please try again."}
+          </p>
+        )}
+      </div>
     </div>
   );
 }
