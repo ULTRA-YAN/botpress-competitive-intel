@@ -6,7 +6,7 @@ import {
   ScatterChart, Scatter, ZAxis, Cell, PieChart, Pie,
   CartesianGrid, LabelList, ReferenceArea,
 } from "recharts";
-import { ComposableMap, Geographies, Geography, Marker, ZoomableGroup } from "react-simple-maps";
+import dynamic from "next/dynamic";
 
 // ── THEMES ──
 const DARK = {
@@ -67,7 +67,6 @@ const CITY_COORDS = {
   "Berlin, Germany": { lat: 52.5200, lng: 13.4050 },
   "Bangalore, India": { lat: 12.9716, lng: 77.5946 },
 };
-const GEO_URL = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json";
 
 // ── DATA ──
 const competitors = [
@@ -605,17 +604,69 @@ function CompetitiveDynamics({ data }) {
   );
 }
 
-// ── 6. HQ MAP ──
+// ── 6. HQ MAP (Leaflet) ──
+function LeafletMapInner({ data, cityGroups, getDominantColor, t }) {
+  const L = require("leaflet");
+  const { MapContainer, TileLayer, CircleMarker, Tooltip: LTooltip } = require("react-leaflet");
+
+  // Inject Leaflet CSS once
+  if (typeof window !== "undefined" && !document.getElementById("leaflet-css")) {
+    const link = document.createElement("link");
+    link.id = "leaflet-css";
+    link.rel = "stylesheet";
+    link.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
+    document.head.appendChild(link);
+  }
+
+  return (
+    <MapContainer
+      center={[30, 0]}
+      zoom={2}
+      minZoom={2}
+      maxZoom={12}
+      scrollWheelZoom={true}
+      style={{ width: "100%", height: 520, borderRadius: 12, zIndex: 1 }}
+    >
+      <TileLayer
+        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+        url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
+      />
+      {cityGroups.map(city => {
+        const r = 6 + Math.sqrt(city.companies.length) * 3;
+        const color = getDominantColor(city.companies);
+        return (
+          <CircleMarker
+            key={city.city}
+            center={[city.lat, city.lng]}
+            radius={r}
+            pathOptions={{ fillColor: color, fillOpacity: 0.85, color: "#fff", weight: 2 }}
+          >
+            <LTooltip direction="top" offset={[0, -r]} opacity={1}>
+              <div style={{ minWidth: 180 }}>
+                <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 4 }}>{city.city}</div>
+                {city.companies.slice(0, 8).map(c => (
+                  <div key={c.name} style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
+                    <div style={{ width: 7, height: 7, borderRadius: "50%", background: CAT_COLORS[c.category] || "#3b82f6", flexShrink: 0 }} />
+                    <span style={{ fontSize: 11, fontWeight: 600 }}>{c.name}</span>
+                    <span style={{ fontSize: 10, color: "#666" }}>{c.category}</span>
+                  </div>
+                ))}
+                {city.companies.length > 8 && (
+                  <div style={{ fontSize: 10, color: "#888", marginTop: 2 }}>+{city.companies.length - 8} more</div>
+                )}
+              </div>
+            </LTooltip>
+          </CircleMarker>
+        );
+      })}
+    </MapContainer>
+  );
+}
+
+const LeafletMap = dynamic(() => Promise.resolve(LeafletMapInner), { ssr: false });
+
 function HQMap({ data }) {
   const t = useTheme();
-  const [hovered, setHovered] = useState(null);
-  const [zoom, setZoom] = useState(1);
-  const [center, setCenter] = useState([10, 20]);
-
-  const handleZoomIn = () => setZoom(z => Math.min(z * 1.5, 12));
-  const handleZoomOut = () => setZoom(z => Math.max(z / 1.5, 1));
-  const handleReset = () => { setZoom(1); setCenter([10, 20]); };
-  const handleMoveEnd = (pos) => { setZoom(pos.zoom); setCenter(pos.coordinates); };
 
   const cityGroups = useMemo(() => {
     const groups = {};
@@ -639,99 +690,9 @@ function HQMap({ data }) {
     <div>
       <h3 style={{ color: t.text, margin: "0 0 4px", fontSize: 18, fontWeight: 700 }}>Global HQ Locations</h3>
       <p style={{ color: t.textMuted, margin: "0 0 16px", fontSize: 13 }}>
-        Showing {data.length} platforms across {cityGroups.length} cities. Hover pins for details.
+        Showing {data.length} platforms across {cityGroups.length} cities. Click and drag to pan, scroll to zoom.
       </p>
-      <div style={{ position: "relative" }}>
-        <ComposableMap
-          projection="geoNaturalEarth1"
-          projectionConfig={{ scale: 160 }}
-          style={{ width: "100%", height: "auto", maxHeight: 520 }}
-        >
-          <ZoomableGroup
-            zoom={zoom}
-            center={center}
-            onMoveEnd={handleMoveEnd}
-            minZoom={1}
-            maxZoom={12}
-          >
-            <Geographies geography={GEO_URL}>
-              {({ geographies }) =>
-                geographies.map(geo => (
-                  <Geography
-                    key={geo.rsmKey}
-                    geography={geo}
-                    fill={t.surfaceHover}
-                    stroke={t.border}
-                    strokeWidth={0.5}
-                    style={{
-                      default: { outline: "none" },
-                      hover: { outline: "none", fill: t.border },
-                      pressed: { outline: "none" },
-                    }}
-                  />
-                ))
-              }
-            </Geographies>
-            {cityGroups.map(city => {
-              const r = (4 + Math.sqrt(city.companies.length) * 3) / Math.sqrt(zoom);
-              const color = getDominantColor(city.companies);
-              return (
-                <Marker key={city.city} coordinates={[city.lng, city.lat]}>
-                  <circle
-                    r={r}
-                    fill={color}
-                    fillOpacity={0.85}
-                    stroke="#fff"
-                    strokeWidth={1.5 / zoom}
-                    style={{ cursor: "pointer" }}
-                    onMouseEnter={() => setHovered(city)}
-                    onMouseLeave={() => setHovered(null)}
-                  />
-                  {city.companies.length > 1 && (
-                    <text
-                      textAnchor="middle"
-                      dominantBaseline="central"
-                      style={{ fontSize: Math.max(7, r - 2), fill: "#fff", fontWeight: 700, pointerEvents: "none" }}
-                    >
-                      {city.companies.length}
-                    </text>
-                  )}
-                </Marker>
-              );
-            })}
-          </ZoomableGroup>
-        </ComposableMap>
-        <div style={{ position: "absolute", bottom: 12, left: 12, display: "flex", gap: 6 }}>
-          {[{ label: "+", fn: handleZoomIn }, { label: "−", fn: handleZoomOut }, { label: "↺", fn: handleReset }].map(b => (
-            <button key={b.label} onClick={b.fn} style={{
-              width: 32, height: 32, borderRadius: 8, border: `1px solid ${t.border}`,
-              background: t.surface, color: t.text, fontSize: 16, fontWeight: 700,
-              cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
-              boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
-            }}>{b.label}</button>
-          ))}
-        </div>
-        {hovered && (
-          <div style={{
-            position: "absolute", top: 12, right: 12,
-            background: t.surface, border: `1px solid ${t.border}`, borderRadius: 10,
-            padding: "14px 18px", minWidth: 220, maxWidth: 320, zIndex: 10,
-            boxShadow: "0 4px 20px rgba(0,0,0,0.12)",
-          }}>
-            <div style={{ fontWeight: 700, color: t.text, fontSize: 14, marginBottom: 8 }}>{hovered.city}</div>
-            {hovered.companies.slice(0, 8).map(c => (
-              <div key={c.name} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                <div style={{ width: 8, height: 8, borderRadius: "50%", background: CAT_COLORS[c.category] || t.accent, flexShrink: 0 }} />
-                <span style={{ color: t.text, fontSize: 12, fontWeight: 600 }}>{c.name}</span>
-                <span style={{ color: t.textMuted, fontSize: 11 }}>{c.category}</span>
-              </div>
-            ))}
-            {hovered.companies.length > 8 && (
-              <div style={{ color: t.textMuted, fontSize: 11, marginTop: 4 }}>+{hovered.companies.length - 8} more</div>
-            )}
-          </div>
-        )}
-      </div>
+      <LeafletMap data={data} cityGroups={cityGroups} getDominantColor={getDominantColor} t={t} />
       <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginTop: 16 }}>
         {Object.entries(CAT_COLORS).map(([cat, color]) => {
           const count = data.filter(c => c.category === cat).length;
