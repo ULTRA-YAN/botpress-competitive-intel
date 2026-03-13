@@ -6,7 +6,7 @@ import {
   ScatterChart, Scatter, ZAxis, Cell, PieChart, Pie,
   CartesianGrid, LabelList, ReferenceArea,
 } from "recharts";
-import { ComposableMap, Geographies, Geography, Marker } from "react-simple-maps";
+import { ComposableMap, Geographies, Geography, Marker, ZoomableGroup } from "react-simple-maps";
 
 // ── THEMES ──
 const DARK = {
@@ -609,6 +609,13 @@ function CompetitiveDynamics({ data }) {
 function HQMap({ data }) {
   const t = useTheme();
   const [hovered, setHovered] = useState(null);
+  const [zoom, setZoom] = useState(1);
+  const [center, setCenter] = useState([10, 20]);
+
+  const handleZoomIn = () => setZoom(z => Math.min(z * 1.5, 12));
+  const handleZoomOut = () => setZoom(z => Math.max(z / 1.5, 1));
+  const handleReset = () => { setZoom(1); setCenter([10, 20]); };
+  const handleMoveEnd = (pos) => { setZoom(pos.zoom); setCenter(pos.coordinates); };
 
   const cityGroups = useMemo(() => {
     const groups = {};
@@ -637,55 +644,73 @@ function HQMap({ data }) {
       <div style={{ position: "relative" }}>
         <ComposableMap
           projection="geoNaturalEarth1"
-          projectionConfig={{ scale: 160, center: [10, 20] }}
+          projectionConfig={{ scale: 160 }}
           style={{ width: "100%", height: "auto", maxHeight: 520 }}
         >
-          <Geographies geography={GEO_URL}>
-            {({ geographies }) =>
-              geographies.map(geo => (
-                <Geography
-                  key={geo.rsmKey}
-                  geography={geo}
-                  fill={t.surfaceHover}
-                  stroke={t.border}
-                  strokeWidth={0.5}
-                  style={{
-                    default: { outline: "none" },
-                    hover: { outline: "none", fill: t.border },
-                    pressed: { outline: "none" },
-                  }}
-                />
-              ))
-            }
-          </Geographies>
-          {cityGroups.map(city => {
-            const r = 4 + Math.sqrt(city.companies.length) * 3;
-            const color = getDominantColor(city.companies);
-            return (
-              <Marker key={city.city} coordinates={[city.lng, city.lat]}>
-                <circle
-                  r={r}
-                  fill={color}
-                  fillOpacity={0.85}
-                  stroke="#fff"
-                  strokeWidth={1.5}
-                  style={{ cursor: "pointer" }}
-                  onMouseEnter={() => setHovered(city)}
-                  onMouseLeave={() => setHovered(null)}
-                />
-                {city.companies.length > 1 && (
-                  <text
-                    textAnchor="middle"
-                    dominantBaseline="central"
-                    style={{ fontSize: Math.max(7, r - 2), fill: "#fff", fontWeight: 700, pointerEvents: "none" }}
-                  >
-                    {city.companies.length}
-                  </text>
-                )}
-              </Marker>
-            );
-          })}
+          <ZoomableGroup
+            zoom={zoom}
+            center={center}
+            onMoveEnd={handleMoveEnd}
+            minZoom={1}
+            maxZoom={12}
+          >
+            <Geographies geography={GEO_URL}>
+              {({ geographies }) =>
+                geographies.map(geo => (
+                  <Geography
+                    key={geo.rsmKey}
+                    geography={geo}
+                    fill={t.surfaceHover}
+                    stroke={t.border}
+                    strokeWidth={0.5}
+                    style={{
+                      default: { outline: "none" },
+                      hover: { outline: "none", fill: t.border },
+                      pressed: { outline: "none" },
+                    }}
+                  />
+                ))
+              }
+            </Geographies>
+            {cityGroups.map(city => {
+              const r = (4 + Math.sqrt(city.companies.length) * 3) / Math.sqrt(zoom);
+              const color = getDominantColor(city.companies);
+              return (
+                <Marker key={city.city} coordinates={[city.lng, city.lat]}>
+                  <circle
+                    r={r}
+                    fill={color}
+                    fillOpacity={0.85}
+                    stroke="#fff"
+                    strokeWidth={1.5 / zoom}
+                    style={{ cursor: "pointer" }}
+                    onMouseEnter={() => setHovered(city)}
+                    onMouseLeave={() => setHovered(null)}
+                  />
+                  {city.companies.length > 1 && (
+                    <text
+                      textAnchor="middle"
+                      dominantBaseline="central"
+                      style={{ fontSize: Math.max(7, r - 2), fill: "#fff", fontWeight: 700, pointerEvents: "none" }}
+                    >
+                      {city.companies.length}
+                    </text>
+                  )}
+                </Marker>
+              );
+            })}
+          </ZoomableGroup>
         </ComposableMap>
+        <div style={{ position: "absolute", bottom: 12, left: 12, display: "flex", gap: 6 }}>
+          {[{ label: "+", fn: handleZoomIn }, { label: "−", fn: handleZoomOut }, { label: "↺", fn: handleReset }].map(b => (
+            <button key={b.label} onClick={b.fn} style={{
+              width: 32, height: 32, borderRadius: 8, border: `1px solid ${t.border}`,
+              background: t.surface, color: t.text, fontSize: 16, fontWeight: 700,
+              cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+              boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+            }}>{b.label}</button>
+          ))}
+        </div>
         {hovered && (
           <div style={{
             position: "absolute", top: 12, right: 12,
