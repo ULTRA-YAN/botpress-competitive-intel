@@ -139,7 +139,7 @@ const TABS = [
   { id: "pricing", label: "Pricing" },
   { id: "aiPosture", label: "AI Maturity" },
   { id: "hqMap", label: "HQ Map" },
-  { id: "liveIntel", label: "Live Intel" },
+  { id: "latestNews", label: "Latest News" },
 ];
 
 // ── SHARED STYLES ──
@@ -698,22 +698,92 @@ function HQMap({ data }) {
   );
 }
 
-// ── LIVE INTEL ──
-const INTEL_CATEGORY_ICONS = {
-  funding: "💰",
-  feature: "🚀",
-  leadership: "👤",
-  pivot: "🔄",
-};
-
-const INTEL_CATEGORY_COLORS = {
+// ── LATEST NEWS ──
+const NEWS_CAT_COLORS = {
   funding: "#4ade80",
   feature: "#a78bfa",
   leadership: "#fbbf24",
   pivot: "#f472b6",
 };
 
-function LiveIntel() {
+function truncateHeadline(headline, maxWords = 15) {
+  if (!headline) return "";
+  const words = headline.split(/\s+/);
+  if (words.length <= maxWords) return headline;
+  return words.slice(0, maxWords).join(" ") + "...";
+}
+
+function formatFullDate(dateStr) {
+  if (!dateStr) return "";
+  const d = new Date(dateStr);
+  return d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" });
+}
+
+function NewsLine({ item, t }) {
+  const [hovered, setHovered] = useState(false);
+  const catColor = NEWS_CAT_COLORS[item.category] || t.textMuted;
+  const truncated = truncateHeadline(item.headline);
+
+  return (
+    <div
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        display: "flex", alignItems: "center", gap: 12, padding: "10px 0",
+        borderBottom: `1px solid ${t.borderSubtle}`,
+        transition: "background 0.15s",
+        background: hovered ? "rgba(255,255,255,0.02)" : "transparent",
+        marginLeft: -8, marginRight: -8, paddingLeft: 8, paddingRight: 8,
+        borderRadius: 2,
+      }}
+    >
+      {/* Category dot */}
+      <div style={{ width: 6, height: 6, borderRadius: "50%", background: catColor, flexShrink: 0 }} />
+
+      {/* Company tag */}
+      <span style={{
+        fontFamily: t.fontMono, fontSize: 9, textTransform: "uppercase", letterSpacing: "0.1em",
+        color: t.textMuted, flexShrink: 0, minWidth: 80,
+      }}>
+        {item.company}
+      </span>
+
+      {/* Headline with link */}
+      <div style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+        {item.source_url ? (
+          <a
+            href={item.source_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              fontFamily: t.fontBody, fontSize: 13, color: t.text,
+              textDecoration: "none", transition: "color 0.15s",
+              ...(hovered ? { color: t.accent } : {}),
+            }}
+          >
+            {truncated}
+            <span style={{ fontFamily: t.fontMono, fontSize: 9, color: t.textFaint, marginLeft: 6 }}>{"\u2197"}</span>
+          </a>
+        ) : (
+          <span style={{ fontFamily: t.fontBody, fontSize: 13, color: t.text }}>{truncated}</span>
+        )}
+      </div>
+
+      {/* Date tooltip on hover */}
+      <div style={{
+        fontFamily: t.fontMono, fontSize: 9, color: t.textFaint, whiteSpace: "nowrap",
+        flexShrink: 0, letterSpacing: "0.05em",
+        opacity: hovered ? 1 : 0, transition: "opacity 0.2s",
+        background: "rgba(20,20,20,0.9)", padding: "3px 8px", borderRadius: 2,
+        border: `1px solid ${t.borderSubtle}`,
+      }}>
+        {formatFullDate(item.published_at)}
+      </div>
+    </div>
+  );
+}
+
+function LatestNews() {
   const t = useTheme();
   const [updates, setUpdates] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -752,133 +822,78 @@ function LiveIntel() {
 
   useEffect(() => { fetchUpdates(); }, [filter]);
 
-  const timeAgo = (dateStr) => {
-    const diff = Date.now() - new Date(dateStr).getTime();
-    const mins = Math.floor(diff / 60000);
-    if (mins < 60) return `${mins}m ago`;
-    const hrs = Math.floor(mins / 60);
-    if (hrs < 24) return `${hrs}h ago`;
-    const days = Math.floor(hrs / 24);
-    return `${days}d ago`;
-  };
-
   const totalUpdates = Object.values(categoryCounts).reduce((a, b) => a + b, 0);
+  const cats = ["funding", "feature", "leadership", "pivot"];
 
   return (
     <div>
-      <div style={{ fontFamily: t.fontMono, fontSize: 10, textTransform: "uppercase", letterSpacing: "0.3em", color: t.accent, marginBottom: 8 }}>
-        {"\u25AA"} Live Intelligence Feed
-      </div>
-      <div style={{ fontFamily: t.fontDisplay, fontSize: 36, color: t.text, marginBottom: 8 }}>
-        Competitor Updates
-      </div>
-      <p style={{ fontFamily: t.fontBody, fontSize: 14, color: t.textMuted, marginBottom: 32 }}>
-        Auto-collected from news, RSS feeds, and announcements. Cron runs every 4-6 hours.
+      <div style={SECTION_LABEL(t)}>{"\u25AA"} Latest News</div>
+      <div style={SECTION_HEADING(t)}>Competitor News Feed</div>
+      <p style={{ fontFamily: t.fontBody, fontSize: 13, color: t.textMuted, marginBottom: 28 }}>
+        Auto-collected every 4-6 hours. Hover for dates, click headlines to read full articles.
       </p>
 
-      {/* Stats Row */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16, marginBottom: 32 }}>
-        {["funding", "feature", "leadership", "pivot"].map((cat) => (
-          <div key={cat} style={{
-            background: t.surface, backdropFilter: "blur(20px)",
-            border: `1px solid ${t.borderSubtle}`, borderRadius: 4, padding: "20px 16px",
-            cursor: "pointer", transition: "border-color 0.2s",
-            borderColor: filter === cat ? INTEL_CATEGORY_COLORS[cat] : t.borderSubtle,
-          }} onClick={() => setFilter(filter === cat ? "all" : cat)}>
-            <div style={{ fontSize: 28, marginBottom: 8 }}>{INTEL_CATEGORY_ICONS[cat]}</div>
-            <div style={{ fontFamily: t.fontDisplay, fontSize: 32, color: t.text }}>{categoryCounts[cat] || 0}</div>
-            <div style={{ fontFamily: t.fontMono, fontSize: 9, textTransform: "uppercase", letterSpacing: "0.2em", color: t.textMuted, marginTop: 4 }}>
-              {cat}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Controls */}
-      <div style={{ display: "flex", gap: 8, marginBottom: 24, alignItems: "center" }}>
-        <button onClick={() => runCollection("news")} disabled={collecting} style={{
-          background: t.surface, border: `1px solid ${t.border}`, borderRadius: 4, padding: "8px 16px",
-          fontFamily: t.fontMono, fontSize: 10, textTransform: "uppercase", letterSpacing: "0.15em",
-          color: t.text, cursor: collecting ? "wait" : "pointer",
+      {/* Filter row */}
+      <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 20, flexWrap: "wrap" }}>
+        <button onClick={() => setFilter("all")} style={{
+          background: "transparent", border: "none", cursor: "pointer", padding: 0,
+          fontFamily: t.fontMono, fontSize: 9, textTransform: "uppercase", letterSpacing: "0.15em",
+          color: filter === "all" ? t.text : t.textFaint, transition: "color 0.2s",
         }}>
-          {collecting ? "Collecting..." : "▪ Collect News Now"}
+          {filter === "all" && <span style={{ color: t.accent }}>{"\u25AA "}</span>}All ({totalUpdates})
+        </button>
+        {cats.map(cat => (
+          <button key={cat} onClick={() => setFilter(filter === cat ? "all" : cat)} style={{
+            background: "transparent", border: "none", cursor: "pointer", padding: 0,
+            fontFamily: t.fontMono, fontSize: 9, textTransform: "uppercase", letterSpacing: "0.15em",
+            color: filter === cat ? NEWS_CAT_COLORS[cat] : t.textFaint, transition: "color 0.2s",
+          }}>
+            {filter === cat && <span style={{ color: NEWS_CAT_COLORS[cat] }}>{"\u25AA "}</span>}
+            {cat} ({categoryCounts[cat] || 0})
+          </button>
+        ))}
+
+        <div style={{ flex: 1 }} />
+
+        {/* Collect buttons */}
+        <button onClick={() => runCollection("news")} disabled={collecting} style={{
+          background: "transparent", border: `1px solid ${t.borderSubtle}`, borderRadius: 2, padding: "5px 12px",
+          fontFamily: t.fontMono, fontSize: 9, textTransform: "uppercase", letterSpacing: "0.1em",
+          color: t.textMuted, cursor: collecting ? "wait" : "pointer", transition: "border-color 0.2s",
+        }}>
+          {collecting ? "..." : "Collect News"}
         </button>
         <button onClick={() => runCollection("rss")} disabled={collecting} style={{
-          background: t.surface, border: `1px solid ${t.border}`, borderRadius: 4, padding: "8px 16px",
-          fontFamily: t.fontMono, fontSize: 10, textTransform: "uppercase", letterSpacing: "0.15em",
-          color: t.text, cursor: collecting ? "wait" : "pointer",
+          background: "transparent", border: `1px solid ${t.borderSubtle}`, borderRadius: 2, padding: "5px 12px",
+          fontFamily: t.fontMono, fontSize: 9, textTransform: "uppercase", letterSpacing: "0.1em",
+          color: t.textMuted, cursor: collecting ? "wait" : "pointer", transition: "border-color 0.2s",
         }}>
-          {collecting ? "Collecting..." : "▪ Collect RSS Now"}
+          {collecting ? "..." : "Collect RSS"}
         </button>
-        <div style={{ flex: 1 }} />
-        <div style={{ fontFamily: t.fontMono, fontSize: 10, color: t.textMuted, letterSpacing: "0.1em" }}>
-          {totalUpdates} total updates
-        </div>
       </div>
 
       {/* Divider */}
-      <div style={{ borderBottom: `1px solid ${t.borderSubtle}`, marginBottom: 24 }} />
+      <div style={{ borderBottom: `1px solid ${t.borderSubtle}`, marginBottom: 4 }} />
 
-      {/* Updates Feed */}
+      {/* News Feed */}
       {loading ? (
-        <div style={{ textAlign: "center", padding: 60, color: t.textMuted }}>
-          <div style={{ fontFamily: t.fontDisplay, fontSize: 24, color: t.textFaint, marginBottom: 8 }}>Loading...</div>
+        <div style={{ textAlign: "center", padding: 60 }}>
+          <div style={{ fontFamily: t.fontMono, fontSize: 10, color: t.textFaint, letterSpacing: "0.2em", textTransform: "uppercase" }}>Loading...</div>
         </div>
       ) : updates.length === 0 ? (
-        <div style={{ textAlign: "center", padding: 60, color: t.textMuted }}>
-          <div style={{ fontFamily: t.fontDisplay, fontSize: 28, color: t.textFaint, marginBottom: 8 }}>No updates yet</div>
-          <p style={{ fontFamily: t.fontBody, fontSize: 14, marginBottom: 24 }}>
-            Click &quot;Collect News Now&quot; or &quot;Collect RSS Now&quot; above to start gathering intel.
+        <div style={{ textAlign: "center", padding: 60 }}>
+          <div style={{ fontFamily: t.fontDisplay, fontSize: 24, color: t.textFaint, marginBottom: 8 }}>No news yet</div>
+          <p style={{ fontFamily: t.fontBody, fontSize: 13, color: t.textMuted, marginBottom: 16 }}>
+            Click &quot;Collect News&quot; or &quot;Collect RSS&quot; above to start gathering headlines.
           </p>
-          <p style={{ fontFamily: t.fontMono, fontSize: 11, color: t.textFaint }}>
-            Once deployed, Vercel cron jobs will auto-collect every 4-6 hours.
+          <p style={{ fontFamily: t.fontMono, fontSize: 10, color: t.textFaint }}>
+            Vercel cron jobs will auto-collect every 4-6 hours once deployed.
           </p>
         </div>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+        <div>
           {updates.map((item, i) => (
-            <div key={item.id || i} style={{
-              display: "flex", alignItems: "flex-start", gap: 16, padding: "16px 0",
-              borderBottom: `1px solid ${t.borderSubtle}`,
-            }}>
-              <div style={{
-                width: 36, height: 36, borderRadius: 4, display: "flex", alignItems: "center", justifyContent: "center",
-                background: `${INTEL_CATEGORY_COLORS[item.category]}15`,
-                border: `1px solid ${INTEL_CATEGORY_COLORS[item.category]}30`,
-                fontSize: 18, flexShrink: 0,
-              }}>
-                {INTEL_CATEGORY_ICONS[item.category] || "📌"}
-              </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                  <span style={{
-                    fontFamily: t.fontMono, fontSize: 9, textTransform: "uppercase", letterSpacing: "0.15em",
-                    color: INTEL_CATEGORY_COLORS[item.category], fontWeight: 600,
-                  }}>
-                    {item.category}
-                  </span>
-                  <span style={{ fontFamily: t.fontMono, fontSize: 9, color: t.textFaint }}>·</span>
-                  <span style={{ fontFamily: t.fontMono, fontSize: 9, color: t.textMuted, letterSpacing: "0.1em" }}>
-                    {item.company}
-                  </span>
-                </div>
-                <div style={{ fontFamily: t.fontBody, fontSize: 14, color: t.text, lineHeight: 1.5, marginBottom: 4 }}>
-                  {item.source_url ? (
-                    <a href={item.source_url} target="_blank" rel="noopener noreferrer" style={{ color: t.text, textDecoration: "none" }}>
-                      {item.headline}
-                    </a>
-                  ) : item.headline}
-                </div>
-                {item.summary && (
-                  <div style={{ fontFamily: t.fontBody, fontSize: 12, color: t.textMuted, lineHeight: 1.5 }}>
-                    {item.summary.substring(0, 200)}{item.summary.length > 200 ? "..." : ""}
-                  </div>
-                )}
-              </div>
-              <div style={{ fontFamily: t.fontMono, fontSize: 9, color: t.textFaint, whiteSpace: "nowrap", flexShrink: 0, letterSpacing: "0.1em" }}>
-                {item.published_at ? timeAgo(item.published_at) : ""}
-              </div>
-            </div>
+            <NewsLine key={item.id || i} item={item} t={t} />
           ))}
         </div>
       )}
@@ -911,7 +926,7 @@ export default function Dashboard() {
       case "aiPosture": return <AIMaturity data={filtered} />;
       case "dynamics": return <CompetitiveDynamics data={filtered} />;
       case "hqMap": return <HQMap data={filtered} />;
-      case "liveIntel": return <LiveIntel />;
+      case "latestNews": return <LatestNews />;
       default: return null;
     }
   };
